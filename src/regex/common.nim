@@ -31,7 +31,95 @@ func `<=`*(x, y: Rune): bool =
 func cmp*(x, y: Rune): int =
   x.int32 - y.int32
 
-func bwRuneAt*(s: string, n: int): Rune =
+when NimMajor < 2:
+  # Copied from std/unicode in Nim's stdlib because Nim older than ver 2
+  # doesn't have `fastRuneAt`/`runeAt` with `openArray[char]` param.
+
+  template ones(n: untyped): untyped = ((1 shl n)-1)
+  const replRune = Rune(0xFFFD)
+
+  template fastRuneAt*(s: openArray[char], i: int, result: untyped, doInc = true) =
+    ## Returns the rune ``s[i]`` in ``result``.
+    ##
+    ## If ``doInc == true`` (default), ``i`` is incremented by the number
+    ## of bytes that have been processed.
+    bind ones
+    if uint(s[i]) <= 127:
+      result = Rune(uint(s[i]))
+      when doInc: inc(i)
+    elif uint(s[i]) shr 5 == 0b110:
+      # assert(uint(s[i+1]) shr 6 == 0b10)
+      if i <= s.len - 2:
+        result = Rune((uint(s[i]) and (ones(5))) shl 6 or
+                      (uint(s[i+1]) and ones(6)))
+        when doInc: inc(i, 2)
+      else:
+        result = replRune
+        when doInc: inc(i)
+    elif uint(s[i]) shr 4 == 0b1110:
+      # assert(uint(s[i+1]) shr 6 == 0b10)
+      # assert(uint(s[i+2]) shr 6 == 0b10)
+      if i <= s.len - 3:
+        result = Rune((uint(s[i]) and ones(4)) shl 12 or
+                      (uint(s[i+1]) and ones(6)) shl 6 or
+                      (uint(s[i+2]) and ones(6)))
+        when doInc: inc(i, 3)
+      else:
+        result = replRune
+        when doInc: inc(i)
+    elif uint(s[i]) shr 3 == 0b11110:
+      # assert(uint(s[i+1]) shr 6 == 0b10)
+      # assert(uint(s[i+2]) shr 6 == 0b10)
+      # assert(uint(s[i+3]) shr 6 == 0b10)
+      if i <= s.len - 4:
+        result = Rune((uint(s[i]) and ones(3)) shl 18 or
+                      (uint(s[i+1]) and ones(6)) shl 12 or
+                      (uint(s[i+2]) and ones(6)) shl 6 or
+                      (uint(s[i+3]) and ones(6)))
+        when doInc: inc(i, 4)
+      else:
+        result = replRune
+        when doInc: inc(i)
+    elif uint(s[i]) shr 2 == 0b111110:
+      # assert(uint(s[i+1]) shr 6 == 0b10)
+      # assert(uint(s[i+2]) shr 6 == 0b10)
+      # assert(uint(s[i+3]) shr 6 == 0b10)
+      # assert(uint(s[i+4]) shr 6 == 0b10)
+      if i <= s.len - 5:
+        result = Rune((uint(s[i]) and ones(2)) shl 24 or
+                  (uint(s[i+1]) and ones(6)) shl 18 or
+                  (uint(s[i+2]) and ones(6)) shl 12 or
+                  (uint(s[i+3]) and ones(6)) shl 6 or
+                  (uint(s[i+4]) and ones(6)))
+        when doInc: inc(i, 5)
+      else:
+        result = replRune
+        when doInc: inc(i)
+    elif uint(s[i]) shr 1 == 0b1111110:
+      # assert(uint(s[i+1]) shr 6 == 0b10)
+      # assert(uint(s[i+2]) shr 6 == 0b10)
+      # assert(uint(s[i+3]) shr 6 == 0b10)
+      # assert(uint(s[i+4]) shr 6 == 0b10)
+      # assert(uint(s[i+5]) shr 6 == 0b10)
+      if i <= s.len - 6:
+        result = Rune((uint(s[i]) and ones(1)) shl 30 or
+                      (uint(s[i+1]) and ones(6)) shl 24 or
+                      (uint(s[i+2]) and ones(6)) shl 18 or
+                      (uint(s[i+3]) and ones(6)) shl 12 or
+                      (uint(s[i+4]) and ones(6)) shl 6 or
+                      (uint(s[i+5]) and ones(6)))
+        when doInc: inc(i, 6)
+      else:
+        result = replRune
+        when doInc: inc(i)
+    else:
+      result = Rune(uint(s[i]))
+      when doInc: inc(i)
+
+  proc runeAt*(s: openArray[char], i: Natural): Rune =
+    fastRuneAt(s, i, result, false)
+
+func bwRuneAt*(s: openArray[char], n: int): Rune =
   ## Take rune ending at ``n``
   doAssert n >= 0
   doAssert n <= s.len-1
@@ -41,7 +129,7 @@ func bwRuneAt*(s: string, n: int): Rune =
   fastRuneAt(s, n, result, false)
 
 template bwFastRuneAt*(
-  s: string, n: var int, result: var Rune
+  s: openArray[char], n: var int, result: var Rune
 ): untyped =
   ## Take rune ending at ``n``
   doAssert n > 0
@@ -70,7 +158,7 @@ type
     vusError, vusStart, vusA, vusB, vusC, vusD, vusE, vusF, vusG
 
 # Taken from nim-unicodeplus
-func verifyUtf8*(s: string): int =
+func verifyUtf8*(s: openArray[char]): int =
   ## Return `-1` if `s` is a valid utf-8 string.
   ## Otherwise, return the index of the first bad char.
   result = -1
