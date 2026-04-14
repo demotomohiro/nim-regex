@@ -39,7 +39,6 @@ for the algorithm description
 
 import std/unicode
 import std/tables
-from std/strutils import find
 when defined(nimPreviewSlimSystem):
   import std/assertions
 
@@ -247,42 +246,17 @@ func findSomeImpl*(
   #debugEcho "noMatch"
   return -1
 
-func find(text: openArray[char], sub: string, start: Natural): int =
-  # std/strutils doesn't have `find` for `openArray[char]`.
-  # this is not as optimized as `strutils.find`.
-  result = -1
-  let last = text.len - sub.len
-  if last < start:
-    return -1
-  for i in start .. last:
-    var found = true
-    for j in 0 ..< sub.len:
-      if text[i + j] != sub[j]:
-        found = false
-        break
-    if found:
-      return i
-
-func find(text: openArray[char], sub: char, start: Natural): int =
-  # this is not as optimized as `strutils.find`
-  result = -1
-  for i in start .. text.high:
-    if text[i] == sub:
-      return i
-
 # findAll with literal optimization below,
 # there is an explanation of how this work
 # in litopt.nim
 
 func findSomeOptImpl*(
-  text: string or openArray[char],
+  text: openArray[char],
   regex: Regex,
   ms: var RegexMatches2,
   start: Natural,
   flags: MatchFlags = {}
 ): int =
-  # `openArray[char]` type `text parameter might slower as std/strutils
-  # doesn't have `find` for `openArray` and use own `find`.
   template regexSize: untyped =
     max(regex.litOpt.nfa.s.len, regex.nfa.s.len)
   template opt: untyped = regex.litOpt
