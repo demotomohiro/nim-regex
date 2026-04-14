@@ -270,9 +270,9 @@ func find*(s: openArray[char], sub: char, start: Natural = 0, last = -1): int =
     when hasCStringBuiltin:
       let length = last-start+1
       if length > 0:
-        let found = c_memchr(addr s[start], cint(sub), cast[csize_t](length))
+        let found = c_memchr(unsafeAddr s[start], cint(sub), cast[csize_t](length))
         if not found.isNil:
-          return cast[int](found) -% cast[int](addr s[0])
+          return cast[int](found) -% cast[int](unsafeAddr s[0])
     else:
       findImpl()
 
@@ -300,9 +300,9 @@ func find*(s: openArray[char], sub: string, start: Natural = 0, last = -1): int 
     when declared(memmem):
       let subLen = sub.len
       if last < 0 and start < s.len and subLen != 0:
-        let found = memmem(addr s[start], csize_t(s.len - start), readRawData(sub), csize_t(subLen))
+        let found = memmem(unsafeAddr s[start], csize_t(s.len - start), unsafeAddr sub[0], csize_t(subLen))
         result = if not found.isNil:
-            cast[int](found) -% cast[int](addr s[0])
+            cast[int](found) -% cast[int](unsafeAddr s[0])
           else:
             -1
       else:
