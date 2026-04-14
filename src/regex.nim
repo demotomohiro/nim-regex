@@ -608,7 +608,7 @@ else:
       findSomeImpl(s, pattern, ms, i, flags)
 
 iterator findAll*(
-  s: string,
+  s: string or openArray[char],
   pattern: Regex2,
   start = 0
 ): RegexMatch2 {.inline, raises: [].} =
@@ -635,14 +635,14 @@ iterator findAll*(
     i = findSomeOptTpl(s, pattern.toRegex, ms, i)
     #debugEcho i
     if i < 0: break
-    for mi in ms:
+    for mi in ms.items:
       fillMatchImpl(m, mi, ms, pattern.toRegex)
       yield m
     if i == len(s):
       break
 
 func findAll*(
-  s: string,
+  s: string or openArray[char],
   pattern: Regex2,
   start = 0
 ): seq[RegexMatch2] {.raises: [].} =
